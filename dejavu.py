@@ -5,6 +5,7 @@
     dejavu search "show a file size in KB"  find a function by describing it
     dejavu check                           what the pre-commit hook runs
     dejavu install-hook                    add the hook to the current repo
+    dejavu serve                           optional: keep the model loaded so checks take ~0.5 s, not ~13 s
 
 Everything runs locally with EmbeddingGemma 2; no code leaves the machine.
 """
@@ -15,6 +16,7 @@ import re
 import subprocess
 import sys
 import urllib.request
+from collections import Counter
 
 import numpy as np
 
@@ -27,6 +29,7 @@ MODEL = "google/embeddinggemma-2"
 SIM_PREFIX = "task: sentence similarity | query: "
 QUERY_PREFIX = "task: code retrieval | query: "
 DIM, WARN, HINT = 256, 0.946, 0.91
+PORT = int(os.environ.get("DEJAVU_PORT", "7878"))
 TEST = re.compile(r"(^|/)(tests?|__tests__|e2e)/|\.test\.|\.spec\.|_test\.py")
 HOOK_MARK = "# code-dejavu"
 QUESTION = ("Do function A and function B implement the same behaviour, "
@@ -36,6 +39,16 @@ _model = None
 
 
 def embed(texts, prefix=""):
+    """Embeddings from a running `dejavu serve` if there is one, else load the model here (~13 s, mostly imports)."""
+    try:
+        req = urllib.request.Request(f"http://127.0.0.1:{PORT}/embed", json.dumps({"texts": texts, "prefix": prefix}).encode(),
+                                     {"Content-Type": "application/json"})
+        return np.array(json.load(urllib.request.urlopen(req, timeout=300)), np.float32)
+    except OSError:  # nothing listening (or it died): fall back to in-process
+        return embed_here(texts, prefix)
+
+
+def embed_here(texts, prefix=""):
     global _model
     if _model is None:
         import torch
@@ -115,8 +128,38 @@ def search(query, k=5):
     if not meta:
         return print("no index yet: run `dejavu index <repo> ...` first")
     scores = doc @ embed([query], QUERY_PREFIX)[0]
-    for i in np.argsort(-scores)[:k]:
-        print(f"{scores[i]:.2f}  {meta[i]['name']:<28} {where(meta[i])}")
+    copies = Counter(m["hash"] for m in meta)
+    shown = set()
+    for i in np.argsort(-scores):  # identical copies of one function show once
+        if meta[i]["hash"] in shown:
+            continue
+        shown.add(meta[i]["hash"])
+        n = copies[meta[i]["hash"]] - 1
+        more = f"  (+{n} identical {'copy' if n == 1 else 'copies'})" if n else ""
+        print(f"{scores[i]:.2f}  {meta[i]['name']:<26} {where(meta[i])}{more}")
+        if len(shown) == k:
+            break
+
+
+def serve():
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            req = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            body = json.dumps(embed_here(req["texts"], req["prefix"]).tolist()).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    embed_here(["warm up"])
+    print(f"dejavu: model loaded, serving embeddings on 127.0.0.1:{PORT} (local only; Ctrl+C to stop)")
+    HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()  # one request at a time: one model, one GPU
 
 
 # ---- check: compare the functions a commit adds or changes against the index ----
@@ -233,6 +276,7 @@ def main():
     c.add_argument("--second-opinion", action="store_true",
                    help="ask a local decision model (Ollama /v1/systemone) about borderline matches")
     sub.add_parser("install-hook")
+    sub.add_parser("serve")
     a = p.parse_args()
     if a.cmd == "index":
         repos = registered_repos(a.repos)
@@ -241,6 +285,8 @@ def main():
         build_index(repos)
     elif a.cmd == "search":
         search(" ".join(a.query))
+    elif a.cmd == "serve":
+        serve()
     elif a.cmd == "install-hook":
         install_hook(os.getcwd())
     else:
