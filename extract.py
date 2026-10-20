@@ -12,6 +12,7 @@ SKIP_DIRS = {"node_modules", ".git", ".venv", "venv", "dist", "build", "out", "t
 FUNC_NODES = {"function_declaration", "function_definition", "method_definition", "function_item", "generator_function_declaration"}
 MIN_LINES, MAX_CHARS = 5, 6000
 
+
 def _exclude_patterns():
     """Paths never to index or show: DEJAVU_EXCLUDE (comma-separated) plus lines in $DEJAVU_HOME/exclude."""
     patterns = os.environ.get("DEJAVU_EXCLUDE", "").split(",")
