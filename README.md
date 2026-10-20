@@ -55,6 +55,9 @@ port 7878). With it running, a commit that adds functions is checked in about 0.
 Without it, everything still works, just slower. Commits that don't add or change functions never need the model:
 a docs-only commit takes about 0.2 s either way.
 
+Tip: if two of your repos are forks of each other, index only one of them. Otherwise every function you sync between
+them shows up as an exact copy.
+
 The hook **never blocks a commit**. It prints a warning and gets out of the way, and if anything goes wrong it prints one
 line and exits cleanly.
 
