@@ -12,6 +12,22 @@ SKIP_DIRS = {"node_modules", ".git", ".venv", "venv", "dist", "build", "out", "t
 FUNC_NODES = {"function_declaration", "function_definition", "method_definition", "function_item", "generator_function_declaration"}
 MIN_LINES, MAX_CHARS = 5, 6000
 
+def _exclude_patterns():
+    """Paths never to index or show: DEJAVU_EXCLUDE (comma-separated) plus lines in $DEJAVU_HOME/exclude."""
+    patterns = os.environ.get("DEJAVU_EXCLUDE", "").split(",")
+    try:
+        patterns += open(os.path.join(os.path.expanduser(os.environ.get("DEJAVU_HOME", "~/.dejavu")), "exclude")).read().splitlines()
+    except OSError:
+        pass
+    return [p.strip().lower() for p in patterns if p.strip()]
+
+
+EXCLUDE = _exclude_patterns()
+
+
+def excluded(path):
+    return any(p in path.lower() for p in EXCLUDE)
+
 
 def source_files(repo):
     for root, dirs, files in os.walk(repo):
@@ -25,6 +41,8 @@ def source_files(repo):
             if ext == ".js" and (stem + ".ts" in names or stem + ".tsx" in names):
                 continue
             path = os.path.join(root, f)
+            if excluded(path):
+                continue
             if os.path.getsize(path) < 300_000:
                 yield path, LANGS[ext]
 
