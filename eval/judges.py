@@ -96,7 +96,9 @@ def judge_coreb(pairs):
     model = AutoModelForCausalLM.from_pretrained(mid, dtype=torch.bfloat16, trust_remote_code=True).to("mps").eval()
     prefix = ('<|im_start|>system\nJudge whether the Document meets the requirements based on the Query and the Instruct '
               'provided. Note that the answer can only be "yes" or "no".<|im_end|>\n<|im_start|>user\n')
-    suffix = "<|im_end|>\n<|im_start|>assistant\n"  # exactly as on the CoREB card
+    # The CoREB card omits the empty think block, but its base (Qwen3-Reranker) needs it: without it the next token
+    # is "<think>" and the yes/no margin is noise (add() vs an unrelated function scored P(yes)=0.998).
+    suffix = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
     task = "Given a code snippet, retrieve code that is semantically equivalent or solves the same task."
     yes, no = tok.convert_tokens_to_ids("yes"), tok.convert_tokens_to_ids("no")
     out = []
@@ -214,7 +216,7 @@ def report():
         y = np.array([x[1] for x in d["scores"]])
         rows[name] = y
         lo, hi = band_ci(s)
-        ties = int(((y >= 0.9999) | (y <= 0.0001)).sum())
+        ties = int(labelled.sum() - len(set(np.round(s[labelled], 4))))  # tied scores among labelled pairs blur AUC
         print(f"{name:<22}{auc(list(s[labelled & (lab == 1)]), list(s[labelled & (lab == 0)])):9.3f}"
               f"{auc(list(s[band & (lab == 1)]), list(s[band & (lab == 0)])):10.3f}{f'{lo:.2f}-{hi:.2f}':>15}"
               f"{(y[kind == 'random'] >= 0.5).mean():>18.0%}{ties:>6}{d['per_pair_s']:8.2f}")
@@ -228,6 +230,40 @@ def report():
               f"  [drift copies vetoed: {int((drift_ok & (y < 0.5)).sum())}]")
 
 
+def crossval():
+    """Leave-one-out: pick each cutoff on the other 52 labelled pairs (best F1), score the held-out pair.
+    Applies equally to the embedding's own cutoff, which was also chosen on these pairs."""
+    pairs = [p for p in json.load(open(PAIRS))]
+    keep = [i for i, p in enumerate(pairs) if p["kind"] != "random"]
+    lab = np.array([pairs[i]["label"] for i in keep])
+    cos = np.array([pairs[i]["cos"] for i in keep])
+
+    def best_cut(score, y, gate):
+        cands = sorted(set(score[gate]))
+        f1 = lambda t: (lambda tp, fp, fn: 2 * tp / max(2 * tp + fp + fn, 1))(
+            ((score >= t) & gate & (y == 1)).sum(), ((score >= t) & gate & (y == 0)).sum(), (~((score >= t) & gate) & (y == 1)).sum())
+        return max(cands, key=f1) if cands else math.inf
+
+    def loo(score, gate):
+        pred = np.zeros(len(lab), bool)
+        for i in range(len(lab)):
+            m = np.arange(len(lab)) != i
+            pred[i] = gate[i] and score[i] >= best_cut(score[m], lab[m], gate[m])
+        tp, fp = int((pred & (lab == 1)).sum()), int((pred & (lab == 0)).sum())
+        return f"precision {tp / max(tp + fp, 1):.2f}  recall {tp / (lab == 1).sum():.2f}  ({tp} caught, {fp} false alarms)"
+
+    print("\nleave-one-out cutoffs (honest estimate when a cutoff has to be tuned):")
+    print(f"  {'embedding alone, cutoff tuned':<46}{loo(cos, np.ones(len(lab), bool))}")
+    for name in JUDGES:
+        f = os.path.join(DATA, f"judge_{name}.json")
+        if os.path.exists(f):
+            s = np.array([x[0] for x in json.load(open(f))["scores"]])[keep]
+            print(f"  {f'embedding >= 0.91, then {name}, cutoff tuned':<46}{loo(s, cos >= EMB_HINT)}")
+
+
 if __name__ == "__main__":
+    if sys.argv[1] == "report":
+        report(), crossval()
+        sys.exit()
     cmd = sys.argv[1]
     build_pairs() if cmd == "pairs" else report() if cmd == "report" else run(cmd)
