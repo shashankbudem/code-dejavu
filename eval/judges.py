@@ -105,9 +105,9 @@ def judge_coreb(pairs):
     for p in pairs:
         prompt = f"{prefix}<Instruct>: {task}\n<Query>: {p['a'][:3000]}\n<Document>: {p['b'][:3000]}{suffix}"
         ids = tok(prompt, return_tensors="pt", truncation=True, max_length=4096).to("mps")
-        with torch.no_grad():
-            lg = model(**ids).logits[0, -1, :].float()
-        m = float(lg[yes] - lg[no])
+        with torch.no_grad():  # final yes/no projection in fp32: bf16 logits round to 1/8 steps and tie scores
+            h = model.model(**ids).last_hidden_state[0, -1].float()
+            m = float(h @ (model.lm_head.weight[yes].float() - model.lm_head.weight[no].float()))
         out.append((m, 1 / (1 + math.exp(-m))))
     return out
 
