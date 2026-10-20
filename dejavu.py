@@ -89,12 +89,12 @@ def build_index(repos):
     new = {m["hash"]: m["code"] for m in meta if m["hash"] not in sim_cache}
     if new:
         print(f"embedding {len(new)} new functions for duplicate checks")
-        sim_cache.update(zip(new, embed(list(new.values()), SIM_PREFIX)))
+        sim_cache.update(zip(new, embed_here(list(new.values()), SIM_PREFIX)))  # bulk work: not via the server
     new_doc = {(m["hash"], m["file"]): f"title: {m['file']} | text: {m['code']}" for m in meta
                if (m["hash"], m["file"]) not in doc_cache}
     if new_doc:
         print(f"embedding {len(new_doc)} functions for search")
-        doc_cache.update(zip(new_doc, embed(list(new_doc.values()))))
+        doc_cache.update(zip(new_doc, embed_here(list(new_doc.values()))))
     os.makedirs(HOME, exist_ok=True)
     stack = lambda vecs: np.stack(vecs) if vecs else np.zeros((0, DIM), np.float32)
     with open(f"{HOME}/functions.tmp.jsonl", "w") as f:
