@@ -1,0 +1,18 @@
+[project]
+name = "code-dejavu"
+version = "0.1.0"
+description = "Warns when the function you're committing already exists somewhere in your repos. Runs locally on EmbeddingGemma 2."
+requires-python = ">=3.10"
+license = "Apache-2.0"
+dependencies = ["sentence-transformers>=6.1", "transformers>=5.20", "torch", "torchvision", "pillow", "numpy",
+                "tree-sitter", "tree-sitter-language-pack"]
+
+[project.scripts]
+dejavu = "dejavu:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["dejavu", "extract"]

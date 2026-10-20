@@ -112,12 +112,12 @@ def judge_coreb(pairs):
     return out
 
 
-def judge_clef(pairs):
+def judge_systemone(pairs, model):
     import urllib.request
     url = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11435") + "/v1/systemone"
     out = []
     for p in pairs:
-        body = json.dumps({"model": "clef-flash", "state": state(p["a"], p["b"]), "keep_alive": "10m",
+        body = json.dumps({"model": model, "state": state(p["a"], p["b"]), "keep_alive": "10m",
                            "questions": {"same": {"type": "noul", "instructions": QUESTION}}}).encode()
         req = urllib.request.Request(url, body, {"Content-Type": "application/json"})
         y = float(json.load(urllib.request.urlopen(req, timeout=300))["answers"]["same"]["noul"])
@@ -146,7 +146,8 @@ def logit(y, eps=1e-6):
     return math.log(y / (1 - y))
 
 
-JUDGES = {"laya": judge_laya, "coreb": judge_coreb, "clef": judge_clef, "pplx": judge_pplx}
+JUDGES = {"laya": judge_laya, "coreb": judge_coreb, "clef": lambda p: judge_systemone(p, "clef-flash"),
+          "pplx": judge_pplx, "pplx-ollama-mlx": lambda p: judge_systemone(p, "pplx-decider-flash")}
 
 
 SANITY = [

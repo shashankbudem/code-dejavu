@@ -61,7 +61,11 @@ def normalize(code, lang):
 
 
 def functions(path, lang):
-    src = open(path, "rb").read()
+    return functions_in(open(path, "rb").read(), lang)
+
+
+def functions_in(src, lang):
+    """Functions in a source buffer (bytes), e.g. a file's staged version from git."""
     tree = get_parser(lang).parse(src)
     stack = [tree.root_node]
     while stack:
