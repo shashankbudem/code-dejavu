@@ -1,0 +1,20 @@
+[
+  {"target": ["formatBytes", "src/tools/directEditReview.ts"], "lang": "typescript",
+   "code": "export const humanFileSize = (size: number): string => {\n  const KB = 1024;\n  const MB = KB * KB;\n  if (size >= MB) return Math.round(size / MB) + \" MB\";\n  if (size >= KB) return Math.ceil(size / KB) + \" KB\";\n  return size + \" B\";\n};"},
+  {"target": ["formatBytes", "src/tools/directEditReview.ts"], "lang": "python",
+   "code": "def pretty_size(num_bytes: int) -> str:\n    if num_bytes < 1024:\n        return f\"{num_bytes} B\"\n    if num_bytes < 1024 * 1024:\n        return f\"{math.ceil(num_bytes / 1024)} KB\"\n    return f\"{round(num_bytes / (1024 * 1024))} MB\""},
+  {"target": ["linkAbortSignal", "src/agent/OpenAICompatibleChatClient.ts"], "lang": "typescript",
+   "code": "function forwardCancellation(parent: AbortSignal | undefined, child: AbortController) {\n  if (parent === undefined) return () => {};\n  const relay = () => child.abort(parent.reason);\n  if (parent.aborted) {\n    relay();\n    return () => {};\n  }\n  parent.addEventListener(\"abort\", relay, { once: true });\n  return function unlink() {\n    parent.removeEventListener(\"abort\", relay);\n  };\n}"},
+  {"target": ["escapeHtml", "src/lib/pdf.ts"], "lang": "typescript",
+   "code": "const ENTITIES: Record<string, string> = { \"&\": \"&amp;\", \"<\": \"&lt;\", \">\": \"&gt;\", '\"': \"&quot;\", \"'\": \"&#39;\" };\nfunction htmlEncode(text: string): string {\n  let out = \"\";\n  for (const ch of text) {\n    out += ENTITIES[ch] ?? ch;\n  }\n  return out;\n}"},
+  {"target": ["resize", "site/cursor.js"], "lang": "javascript",
+   "code": "function fitCanvasToWindow() {\n  const ratio = Math.min(window.devicePixelRatio || 1, 2);\n  w = window.innerWidth;\n  h = window.innerHeight;\n  canvas.width = Math.round(w * ratio);\n  canvas.height = Math.round(h * ratio);\n  context.setTransform(ratio, 0, 0, ratio, 0, 0);\n}"},
+  {"target": ["recordRunUsage", "src/tui/TuiApp.ts"], "lang": "typescript",
+   "code": "private addUsage(u: ChatUsage) {\n  const prev = this.totals ?? { promptTokens: 0, completionTokens: 0, totalTokens: 0, requestCount: 0 };\n  const prompt = u.promptTokens ?? 0;\n  const completion = u.completionTokens ?? 0;\n  this.totals = {\n    promptTokens: prev.promptTokens + prompt,\n    completionTokens: prev.completionTokens + completion,\n    totalTokens: prev.totalTokens + (u.totalTokens ?? prompt + completion),\n    requestCount: prev.requestCount + 1\n  };\n}"},
+  {"target": ["capabilityForApprovalAction", "src/permissions/capabilityPolicy.ts"], "lang": "typescript",
+   "code": "const CAPABILITY_BY_ACTION = {\n  read: \"read_repo\",\n  write: \"write_workspace\",\n  shell: \"run_command\",\n  network: \"network_fetch\",\n  browser: \"browser_control\",\n  mcp: \"mcp_call\"\n} as const;\nfunction toCapability(action: ApprovalAction) {\n  return CAPABILITY_BY_ACTION[action.type];\n}"},
+  {"target": ["confirm", "benchmarks/lib/browserRunner.ts"], "lang": "typescript",
+   "code": "async function askYesNo(prompt: string) {\n  const io = createInterface({ input: stdin, output: stdout });\n  try {\n    const reply = await io.question(prompt + \" (y/N): \");\n    return /^y(es)?$/i.test(reply.trim());\n  } finally {\n    io.close();\n  }\n}"},
+  {"target": ["uniqueMcpServerName", "desktop/renderer/src/features/settings/mcpConfig.ts"], "lang": "typescript",
+   "code": "function freeServerKey(wanted: string, existing: McpServersConfig): string {\n  const base = wanted.trim().split(/\\s+/).join(\"-\") || \"proposed-tool\";\n  let key = base;\n  let n = 1;\n  while (key in existing) {\n    n += 1;\n    key = `${base}-${n}`;\n  }\n  return key;\n}"}
+]
