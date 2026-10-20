@@ -1,0 +1,27 @@
+pairs: 28 positives (drift+rewrites), 25 hard negatives, 60 random; borderline band 0.90-0.955: 9 pos / 16 neg
+
+signal                  AUC all  AUC band    band 95% CI  random says same  ties  s/pair
+EmbeddingGemma 2          0.943     0.722      0.49-0.92               n/a         ~0.02
+laya                      0.554     0.403      0.19-0.62               98%     1    0.09
+coreb                     0.797     0.410      0.18-0.67                0%     0    0.60
+clef                      0.786     0.854      0.67-0.99                0%     3    0.87
+pplx                      0.942     0.979      0.91-1.00                0%     8    1.31
+
+hook rules (judge thresholds fixed at P(yes)=0.5, not tuned; the 0.91 gate alone blocks all random pairs):
+  embedding alone >= 0.946 (current)            precision 0.92  recall 0.82  (23 caught, 2 false alarms, 0/60 random flagged)
+  embedding alone >= 0.91 (judge shortlist)     precision 0.68  recall 1.00  (28 caught, 13 false alarms, 0/60 random flagged)
+  embedding >= 0.91, then laya says yes         precision 0.68  recall 1.00  (28 caught, 13 false alarms, 0/60 random flagged)
+  embedding >= 0.946 and laya says yes          precision 0.92  recall 0.82  (23 caught, 2 false alarms, 0/60 random flagged)  [drift copies vetoed: 0]
+  embedding >= 0.91, then coreb says yes        precision 0.68  recall 1.00  (28 caught, 13 false alarms, 0/60 random flagged)
+  embedding >= 0.946 and coreb says yes         precision 0.92  recall 0.82  (23 caught, 2 false alarms, 0/60 random flagged)  [drift copies vetoed: 0]
+  embedding >= 0.91, then clef says yes         precision 1.00  recall 0.36  (10 caught, 0 false alarms, 0/60 random flagged)
+  embedding >= 0.946 and clef says yes          precision 1.00  recall 0.29  (8 caught, 0 false alarms, 0/60 random flagged)  [drift copies vetoed: 13]
+  embedding >= 0.91, then pplx says yes         precision 0.93  recall 0.46  (13 caught, 1 false alarms, 0/60 random flagged)
+  embedding >= 0.946 and pplx says yes          precision 1.00  recall 0.32  (9 caught, 0 false alarms, 0/60 random flagged)  [drift copies vetoed: 13]
+
+leave-one-out cutoffs (honest estimate when a cutoff has to be tuned):
+  embedding alone, cutoff tuned                 precision 0.88  recall 0.82  (23 caught, 3 false alarms)
+  embedding >= 0.91, then laya, cutoff tuned    precision 0.67  recall 0.93  (26 caught, 13 false alarms)
+  embedding >= 0.91, then coreb, cutoff tuned   precision 0.68  recall 0.89  (25 caught, 12 false alarms)
+  embedding >= 0.91, then clef, cutoff tuned    precision 0.72  recall 0.93  (26 caught, 10 false alarms)
+  embedding >= 0.91, then pplx, cutoff tuned    precision 0.89  recall 0.89  (25 caught, 3 false alarms)
